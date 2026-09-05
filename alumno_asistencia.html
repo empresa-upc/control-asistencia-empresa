@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Empresa — Registrar asistencia</title>
+<style>
+body{font-family:Arial,Helvetica,sans-serif;background:#f6f7f8;margin:0;color:#111}
+main{max-width:520px;margin:32px auto;padding:16px}
+.card{background:#fff;border:1px solid #ddd;border-radius:14px;padding:22px}
+h1{font-size:1.6rem;margin:0 0 8px}
+p{line-height:1.45}
+label{display:block;font-weight:700;margin-top:14px}
+input{width:100%;box-sizing:border-box;padding:12px;margin-top:6px;border:1px solid #bbb;border-radius:8px;font-size:1rem}
+button{width:100%;padding:13px;margin-top:16px;border:1px solid #999;border-radius:9px;background:#fff;font-size:1rem;font-weight:700;cursor:pointer}
+#status{margin-top:18px;padding:14px;border:1px solid #ddd;border-radius:9px;background:#fafafa;white-space:pre-wrap}
+.small{font-size:.9rem;color:#555}
+</style>
+</head>
+<body>
+<main>
+<div class="card">
+<h1>Empresa — Asistencia</h1>
+<p>Identifícate con tu cuenta institucional para registrar tu asistencia.</p>
+
+<label for="email">Correo UPC</label>
+<input id="email" type="email" autocomplete="username">
+
+<label for="password">Contraseña de prueba</label>
+<input id="password" type="password" autocomplete="current-password">
+
+<button id="registerBtn">Registrar mi asistencia</button>
+<div id="status">Esperando lectura del QR…</div>
+<p class="small">La validez del código se comprueba en el servidor. La hora del teléfono no se utiliza.</p>
+</div>
+</main>
+
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+const SUPABASE_URL='https://twpommdfpcdwznqoqiaj.supabase.co';
+const SUPABASE_KEY='sb_publishable_y7qK9547paLvOTItxEPoCA_wKMb27JX';
+const supabase=createClient(SUPABASE_URL,SUPABASE_KEY);
+
+const qs=new URLSearchParams(location.search);
+const windowId=qs.get('w');
+const token=qs.get('t');
+const status=document.getElementById('status');
+
+if(!windowId || !token){
+  status.textContent='QR incompleto o no válido.';
+} else {
+  status.textContent='QR recibido. Pulsa “Registrar mi asistencia”.';
+}
+
+document.getElementById('registerBtn').addEventListener('click', async()=>{
+  if(!windowId || !token){
+    status.textContent='No se puede registrar: falta información del QR.';
+    return;
+  }
+
+  const email=document.getElementById('email').value.trim();
+  const password=document.getElementById('password').value;
+  status.textContent='Comprobando identidad…';
+
+  const login=await supabase.auth.signInWithPassword({email,password});
+  if(login.error){
+    status.textContent='No se ha podido iniciar sesión:\n'+login.error.message;
+    return;
+  }
+
+  const link=await supabase.rpc('link_current_user_to_student');
+  if(link.error){
+    status.textContent='No se ha podido vincular el alumno:\n'+link.error.message;
+    return;
+  }
+
+  status.textContent='Validando QR y matrícula…';
+  const reg=await supabase.rpc('register_my_attendance',{
+    p_window_id:windowId,
+    p_qr_token:token
+  });
+
+  if(reg.error){
+    status.textContent='No se ha podido registrar la asistencia:\n'+reg.error.message;
+    return;
+  }
+
+  const result=typeof reg.data==='string' ? reg.data :
+               Array.isArray(reg.data) ? JSON.stringify(reg.data[0] ?? reg.data) :
+               JSON.stringify(reg.data);
+
+  if(result.includes('REGISTERED')){
+    status.textContent='✓ ASISTENCIA REGISTRADA';
+  } else if(result.includes('ALREADY_REGISTERED')){
+    status.textContent='✓ Tu asistencia ya estaba registrada.';
+  } else if(result.includes('NOT_ENROLLED')){
+    status.textContent='No constas matriculado en este grupo.';
+  } else if(result.includes('INVALID_QR')){
+    status.textContent='El QR ha caducado. Escanea el código que aparece ahora en la pantalla.';
+  } else {
+    status.textContent='Respuesta del servidor:\n'+result;
+  }
+});
+</script>
+</body>
+</html>
