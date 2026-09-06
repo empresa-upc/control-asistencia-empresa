@@ -1,0 +1,717 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Empresa — Control de asistencia</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+
+  <style>
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:Arial,Helvetica,sans-serif;
+      background:#f4f6f8;
+      color:#111;
+      padding:28px;
+    }
+    .wrap{max-width:1180px;margin:auto}
+    .card{
+      background:#fff;
+      border:1px solid #ddd;
+      border-radius:20px;
+      padding:26px;
+      margin-bottom:22px;
+    }
+    h1{margin:0 0 10px;font-size:34px}
+    h2{margin:0 0 18px;font-size:25px}
+    p{line-height:1.45}
+    label{display:block;font-weight:700;margin:14px 0 7px}
+    input,select{
+      width:100%;
+      padding:13px 14px;
+      border:1px solid #bbb;
+      border-radius:10px;
+      font-size:17px;
+    }
+    button{
+      padding:13px 18px;
+      border:1px solid #999;
+      border-radius:10px;
+      background:#fff;
+      font-size:16px;
+      font-weight:700;
+      cursor:pointer;
+    }
+    button:disabled{opacity:.5;cursor:default}
+    .row{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:16px;
+    }
+    .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+    .status{
+      margin-top:16px;
+      padding:13px 15px;
+      border:1px solid #ddd;
+      border-radius:10px;
+      background:#fafafa;
+      white-space:pre-wrap;
+    }
+    .session-grid{
+      display:grid;
+      grid-template-columns:360px 1fr;
+      gap:28px;
+      align-items:start;
+    }
+    #qrcode{
+      width:320px;
+      height:320px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      border:1px solid #ddd;
+      border-radius:14px;
+      padding:12px;
+      background:white;
+    }
+    #qrcode img, #qrcode canvas{max-width:100%;height:auto}
+    .big{font-size:28px;font-weight:700}
+    .stats{
+      display:flex;
+      gap:20px;
+      flex-wrap:wrap;
+      margin:16px 0;
+    }
+    .stat{
+      min-width:150px;
+      padding:16px;
+      border:1px solid #ddd;
+      border-radius:12px;
+      background:#fafafa;
+    }
+    .stat .n{font-size:30px;font-weight:700}
+    .table-wrap{overflow:auto}
+    table{
+      width:100%;
+      border-collapse:collapse;
+      min-width:820px;
+    }
+    th,td{
+      padding:11px 10px;
+      border-bottom:1px solid #e4e4e4;
+      text-align:left;
+      vertical-align:middle;
+    }
+    th{background:#f7f7f7;position:sticky;top:0}
+    .present{font-weight:700}
+    .absent{color:#666}
+    .manual-btn{padding:8px 11px;font-size:14px}
+    .muted{color:#666}
+    .hidden{display:none}
+    .toolbar{
+      display:flex;
+      gap:12px;
+      flex-wrap:wrap;
+      align-items:center;
+      margin-bottom:14px;
+    }
+    .toolbar input{max-width:360px}
+    @media(max-width:850px){
+      body{padding:14px}
+      .row,.session-grid{grid-template-columns:1fr}
+      #qrcode{width:280px;height:280px}
+    }
+  </style>
+</head>
+
+<body>
+<div class="wrap">
+
+  <div class="card">
+    <h1>Empresa — Control de asistencia</h1>
+    <p class="muted">Panel del profesor</p>
+
+    <div id="loginBox">
+      <div class="row">
+        <div>
+          <label for="email">Correo UPC</label>
+          <input id="email" type="email" autocomplete="username">
+        </div>
+        <div>
+          <label for="password">Contraseña</label>
+          <input id="password" type="password" autocomplete="current-password">
+        </div>
+      </div>
+
+      <div class="actions">
+        <button id="loginBtn">Iniciar sesión</button>
+      </div>
+
+      <div id="loginStatus" class="status hidden"></div>
+    </div>
+
+    <div id="loggedBox" class="hidden">
+      <div class="actions">
+        <button id="loadGroupsBtn">Cargar grupos</button>
+        <button id="historyBtn">Ver histórico</button>
+        <button id="logoutBtn">Cerrar sesión</button>
+      </div>
+      <div id="teacherStatus" class="status"></div>
+    </div>
+  </div>
+
+
+  <div id="openCard" class="card hidden">
+    <h2>Abrir asistencia</h2>
+
+    <div class="row">
+      <div>
+        <label for="groupSelect">Grupo</label>
+        <select id="groupSelect">
+          <option value="">Selecciona un grupo</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="sessionTitle">Título de la sesión (opcional)</label>
+        <input id="sessionTitle" type="text" placeholder="Ej.: Clase 6 — Validación">
+      </div>
+    </div>
+
+    <div class="actions">
+      <button id="openBtn">Abrir asistencia</button>
+    </div>
+
+    <div id="openStatus" class="status hidden"></div>
+  </div>
+
+
+  <div id="sessionCard" class="card hidden">
+    <h2>Sesión activa</h2>
+
+    <div class="session-grid">
+      <div>
+        <div id="qrcode"></div>
+        <p class="muted">El QR se actualiza aproximadamente cada 5 segundos.</p>
+
+        <div class="actions">
+          <button id="closeBtn">Cerrar asistencia</button>
+        </div>
+
+        <div id="sessionStatus" class="status"></div>
+      </div>
+
+      <div>
+        <div class="big" id="groupTitle">—</div>
+
+        <div class="stats">
+          <div class="stat">
+            <div>Matriculados</div>
+            <div class="n" id="enrolledCount">0</div>
+          </div>
+
+          <div class="stat">
+            <div>Presentes</div>
+            <div class="n" id="presentCount">0</div>
+          </div>
+
+          <div class="stat">
+            <div>Restante</div>
+            <div class="n" id="countdown">—</div>
+          </div>
+        </div>
+
+        <p class="muted">
+          La lista se actualiza automáticamente. Las asistencias manuales quedan registradas como método <strong>manual</strong>.
+        </p>
+      </div>
+    </div>
+  </div>
+
+
+  <div id="rosterCard" class="card hidden">
+    <h2>Lista de alumnos</h2>
+
+    <div class="toolbar">
+      <input id="studentFilter" type="text" placeholder="Buscar por nombre, correo o DNI">
+      <button id="refreshRosterBtn">Actualizar ahora</button>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Alumno</th>
+            <th>Correo</th>
+            <th>Estado</th>
+            <th>Hora</th>
+            <th>Método</th>
+            <th>Acción</th>
+          </tr>
+        </thead>
+        <tbody id="rosterBody"></tbody>
+      </table>
+    </div>
+
+    <div id="rosterStatus" class="status hidden"></div>
+  </div>
+
+  <div id="historyCard" class="card hidden">
+    <h2>Histórico de sesiones</h2>
+
+    <div class="toolbar">
+      <input id="historyFilter" type="text" placeholder="Buscar por grupo, profesor o título">
+      <button id="refreshHistoryBtn">Actualizar histórico</button>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Grupo</th>
+            <th>Sesión</th>
+            <th>Profesor</th>
+            <th>Apertura</th>
+            <th>Cierre</th>
+            <th>Matriculados</th>
+            <th>Presentes</th>
+            <th>Ausentes</th>
+          </tr>
+        </thead>
+        <tbody id="historyBody"></tbody>
+      </table>
+    </div>
+
+    <div id="historyStatus" class="status hidden"></div>
+  </div>
+
+</div>
+
+
+<script>
+const SUPABASE_URL = 'https://twpommdfpcdwznqoqiaj.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_y7qK9547paLvOTItxEPoCA_wKMb27JX';
+const STUDENT_PAGE = 'https://empresa-upc.github.io/control-asistencia-empresa/alumno_asistencia.html';
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let currentWindowId = null;
+let currentGroupName = '';
+let sessionClosesAt = null;
+let qrTimer = null;
+let rosterTimer = null;
+let countdownTimer = null;
+let rosterRows = [];
+let historyRows = [];
+let qrObject = null;
+
+const $ = id => document.getElementById(id);
+
+function setBox(id, text, show=true){
+  const el = $(id);
+  el.textContent = text;
+  el.classList.toggle('hidden', !show);
+}
+
+function escapeHtml(s){
+  return String(s ?? '')
+    .replaceAll('&','&amp;')
+    .replaceAll('<','&lt;')
+    .replaceAll('>','&gt;')
+    .replaceAll('"','&quot;')
+    .replaceAll("'","&#039;");
+}
+
+function formatTime(ts){
+  if(!ts) return '—';
+  const d = new Date(ts);
+  return d.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+
+async function restoreSession(){
+  const { data } = await sb.auth.getSession();
+
+  if(data.session){
+    showLoggedIn(data.session.user.email);
+  }
+}
+
+function showLoggedIn(email){
+  $('loginBox').classList.add('hidden');
+  $('loggedBox').classList.remove('hidden');
+  $('openCard').classList.remove('hidden');
+  setBox('teacherStatus','Sesión iniciada: ' + email);
+}
+
+async function login(){
+  setBox('loginStatus','Iniciando sesión...');
+  $('loginBtn').disabled = true;
+
+  const email = $('email').value.trim();
+  const password = $('password').value;
+
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+
+  $('loginBtn').disabled = false;
+
+  if(error){
+    setBox('loginStatus','No se ha podido iniciar sesión: ' + error.message);
+    return;
+  }
+
+  $('loginStatus').classList.add('hidden');
+  showLoggedIn(data.user.email);
+  await loadGroups();
+}
+
+async function logout(){
+  stopTimers();
+  await sb.auth.signOut();
+
+  currentWindowId = null;
+  $('loggedBox').classList.add('hidden');
+  $('openCard').classList.add('hidden');
+  $('sessionCard').classList.add('hidden');
+  $('rosterCard').classList.add('hidden');
+  $('loginBox').classList.remove('hidden');
+}
+
+async function loadGroups(){
+  setBox('teacherStatus','Cargando grupos...');
+
+  const { data, error } = await sb.rpc('get_my_teacher_groups');
+
+  if(error){
+    setBox('teacherStatus','Error cargando grupos: ' + error.message);
+    return;
+  }
+
+  const select = $('groupSelect');
+  select.innerHTML = '<option value="">Selecciona un grupo</option>';
+
+  for(const row of data || []){
+    const option = document.createElement('option');
+    option.value = row.group_id;
+    option.textContent = `${row.group_name} — ${row.subject_name}`;
+    option.dataset.groupName = row.group_name;
+    select.appendChild(option);
+  }
+
+  setBox('teacherStatus',`Grupos cargados: ${(data || []).length}`);
+}
+
+async function openAttendance(){
+  const groupId = $('groupSelect').value;
+  const selected = $('groupSelect').selectedOptions[0];
+
+  if(!groupId){
+    setBox('openStatus','Selecciona un grupo.');
+    return;
+  }
+
+  currentGroupName = selected?.dataset?.groupName || selected?.textContent || '';
+  const title = $('sessionTitle').value.trim() || null;
+
+  $('openBtn').disabled = true;
+  setBox('openStatus','Abriendo asistencia...');
+
+  const { data, error } = await sb.rpc('open_attendance_session',{
+    p_group_id: groupId,
+    p_title: title
+  });
+
+  $('openBtn').disabled = false;
+
+  if(error){
+    setBox('openStatus','No se ha podido abrir la asistencia: ' + error.message);
+    return;
+  }
+
+  const row = Array.isArray(data) ? data[0] : data;
+
+  if(!row?.window_id){
+    setBox('openStatus','Supabase no ha devuelto una ventana válida.');
+    return;
+  }
+
+  currentWindowId = row.window_id;
+
+  if(row.closed_at){
+    sessionClosesAt = new Date(row.closed_at);
+  } else {
+    sessionClosesAt = new Date(new Date(row.opened_at).getTime() + 5*60*1000);
+  }
+
+  $('sessionCard').classList.remove('hidden');
+  $('rosterCard').classList.remove('hidden');
+  $('groupTitle').textContent = currentGroupName;
+  setBox('openStatus','Asistencia abierta correctamente.');
+  setBox('sessionStatus','Ventana activa.');
+
+  await refreshQr();
+  await refreshRoster();
+
+  stopTimers();
+
+  qrTimer = setInterval(refreshQr, 5000);
+  rosterTimer = setInterval(refreshRoster, 3000);
+  countdownTimer = setInterval(updateCountdown, 500);
+  updateCountdown();
+}
+
+async function refreshQr(){
+  if(!currentWindowId) return;
+
+  const { data, error } = await sb.rpc('get_teacher_qr_token',{
+    p_window_id: currentWindowId
+  });
+
+  if(error){
+    setBox('sessionStatus','Error actualizando QR: ' + error.message);
+    return;
+  }
+
+  const row = Array.isArray(data) ? data[0] : data;
+  if(!row?.qr_token) return;
+
+  const url =
+    STUDENT_PAGE +
+    '?w=' + encodeURIComponent(currentWindowId) +
+    '&t=' + encodeURIComponent(row.qr_token);
+
+  $('qrcode').innerHTML = '';
+
+  qrObject = new QRCode($('qrcode'),{
+    text:url,
+    width:290,
+    height:290,
+    correctLevel:QRCode.CorrectLevel.M
+  });
+}
+
+async function refreshRoster(){
+  if(!currentWindowId) return;
+
+  const { data, error } = await sb.rpc('get_attendance_roster',{
+    p_window_id: currentWindowId
+  });
+
+  if(error){
+    setBox('rosterStatus','No se ha podido cargar la lista: ' + error.message);
+    return;
+  }
+
+  rosterRows = data || [];
+  $('enrolledCount').textContent = rosterRows.length;
+  $('presentCount').textContent =
+    rosterRows.filter(r => r.attendance_status === 'PRESENT').length;
+
+  renderRoster();
+  $('rosterStatus').classList.add('hidden');
+}
+
+function renderRoster(){
+  const q = $('studentFilter').value.trim().toLowerCase();
+
+  const filtered = rosterRows.filter(r => {
+    const text = [
+      r.first_name,
+      r.last_name,
+      r.email,
+      r.dni
+    ].join(' ').toLowerCase();
+
+    return !q || text.includes(q);
+  });
+
+  $('rosterBody').innerHTML = filtered.map(r => {
+    const present = r.attendance_status === 'PRESENT';
+
+    const status = present
+      ? '<span class="present">✓ Presente</span>'
+      : '<span class="absent">— Ausente</span>';
+
+    const method =
+      r.registration_method === 'qr' ? 'QR' :
+      r.registration_method === 'manual' ? 'Manual' : '—';
+
+    const action = present
+      ? '—'
+      : `<button class="manual-btn" onclick="markManual('${r.student_id}')">Marcar presente</button>`;
+
+    return `
+      <tr>
+        <td>${escapeHtml(r.last_name)}, ${escapeHtml(r.first_name)}</td>
+        <td>${escapeHtml(r.email)}</td>
+        <td>${status}</td>
+        <td>${formatTime(r.registered_at)}</td>
+        <td>${method}</td>
+        <td>${action}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+async function markManual(studentId){
+  if(!currentWindowId) return;
+
+  const row = rosterRows.find(r => r.student_id === studentId);
+  const name = row ? `${row.first_name} ${row.last_name}` : 'este alumno';
+
+  if(!confirm(`¿Marcar manualmente como presente a ${name}?`)) return;
+
+  setBox('rosterStatus','Registrando asistencia manual...');
+
+  const { data, error } = await sb.rpc('mark_student_present_manual',{
+    p_window_id: currentWindowId,
+    p_student_id: studentId
+  });
+
+  if(error){
+    setBox('rosterStatus','Error: ' + error.message);
+    return;
+  }
+
+  if(data === 'MANUAL_ATTENDANCE_REGISTERED'){
+    setBox('rosterStatus','✓ Asistencia manual registrada.');
+  } else if(data === 'ALREADY_PRESENT'){
+    setBox('rosterStatus','El alumno ya constaba como presente.');
+  } else if(data === 'STUDENT_NOT_ENROLLED'){
+    setBox('rosterStatus','El alumno no pertenece a esta sesión.');
+  } else {
+    setBox('rosterStatus','Respuesta del servidor: ' + data);
+  }
+
+  await refreshRoster();
+}
+
+async function closeAttendance(){
+  if(!currentWindowId) return;
+
+  if(!confirm('¿Cerrar ahora la asistencia?')) return;
+
+  $('closeBtn').disabled = true;
+
+  const { data, error } = await sb.rpc('close_attendance_window',{
+    p_window_id: currentWindowId
+  });
+
+  $('closeBtn').disabled = false;
+
+  if(error){
+    setBox('sessionStatus','No se ha podido cerrar: ' + error.message);
+    return;
+  }
+
+  stopTimers();
+  setBox('sessionStatus','Asistencia cerrada.');
+  $('countdown').textContent = 'Cerrada';
+
+  await refreshRoster();
+}
+
+function updateCountdown(){
+  if(!sessionClosesAt) return;
+
+  const ms = sessionClosesAt.getTime() - Date.now();
+
+  if(ms <= 0){
+    $('countdown').textContent = '00:00';
+    return;
+  }
+
+  const sec = Math.ceil(ms/1000);
+  const m = String(Math.floor(sec/60)).padStart(2,'0');
+  const s = String(sec%60).padStart(2,'0');
+  $('countdown').textContent = `${m}:${s}`;
+}
+
+
+async function loadHistory(){
+  $('historyCard').classList.remove('hidden');
+  setBox('historyStatus','Cargando histórico...');
+
+  const { data, error } = await sb.rpc('get_teacher_attendance_history');
+
+  if(error){
+    setBox('historyStatus','No se ha podido cargar el histórico: ' + error.message);
+    return;
+  }
+
+  historyRows = data || [];
+  renderHistory();
+  setBox('historyStatus',`Sesiones encontradas: ${historyRows.length}`);
+  $('historyCard').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function formatDate(d){
+  if(!d) return '—';
+  const parts = String(d).split('-');
+  if(parts.length !== 3) return escapeHtml(d);
+  return `${parts[2]}/${parts[1]}/${parts[0]}`;
+}
+
+function renderHistory(){
+  const q = $('historyFilter').value.trim().toLowerCase();
+
+  const rows = historyRows.filter(r => {
+    const text = [
+      r.group_name,
+      r.session_title,
+      r.teacher_name,
+      r.subject_name,
+      r.class_date
+    ].join(' ').toLowerCase();
+
+    return !q || text.includes(q);
+  });
+
+  $('historyBody').innerHTML = rows.map(r => `
+    <tr>
+      <td>${formatDate(r.class_date)}</td>
+      <td>${escapeHtml(r.group_name)}</td>
+      <td>${escapeHtml(r.session_title || '—')}</td>
+      <td>${escapeHtml(r.teacher_name || '—')}</td>
+      <td>${formatTime(r.opened_at)}</td>
+      <td>${r.closed_at ? formatTime(r.closed_at) : 'Abierta'}</td>
+      <td>${r.enrolled_count ?? 0}</td>
+      <td><strong>${r.present_count ?? 0}</strong></td>
+      <td>${r.absent_count ?? 0}</td>
+    </tr>
+  `).join('');
+
+  if(rows.length === 0){
+    $('historyBody').innerHTML =
+      '<tr><td colspan="9" class="muted">No hay sesiones que coincidan con la búsqueda.</td></tr>';
+  }
+}
+
+function stopTimers(){
+  if(qrTimer) clearInterval(qrTimer);
+  if(rosterTimer) clearInterval(rosterTimer);
+  if(countdownTimer) clearInterval(countdownTimer);
+
+  qrTimer = null;
+  rosterTimer = null;
+  countdownTimer = null;
+}
+
+$('loginBtn').addEventListener('click',login);
+$('logoutBtn').addEventListener('click',logout);
+$('loadGroupsBtn').addEventListener('click',loadGroups);
+$('historyBtn').addEventListener('click',loadHistory);
+$('refreshHistoryBtn').addEventListener('click',loadHistory);
+$('historyFilter').addEventListener('input',renderHistory);
+$('openBtn').addEventListener('click',openAttendance);
+$('closeBtn').addEventListener('click',closeAttendance);
+$('refreshRosterBtn').addEventListener('click',refreshRoster);
+$('studentFilter').addEventListener('input',renderRoster);
+
+restoreSession();
+</script>
+</body>
+</html>
