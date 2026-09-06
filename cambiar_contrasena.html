@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Empresa — Cambiar contraseña</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #f4f6f8;
+      color: #111;
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 56px 18px;
+    }
+    .card {
+      width: 100%;
+      max-width: 620px;
+      background: white;
+      border: 1px solid #d8d8d8;
+      border-radius: 24px;
+      padding: 38px 34px 34px;
+    }
+    h1 { font-size: 34px; margin: 0 0 18px; }
+    p { font-size: 20px; line-height: 1.45; margin: 0 0 24px; color: #333; }
+    label { display:block; font-size: 20px; font-weight: 700; margin: 20px 0 8px; }
+    input {
+      width:100%;
+      padding:16px 18px;
+      font-size:20px;
+      border:1px solid #b9b9b9;
+      border-radius:14px;
+    }
+    button {
+      width:100%;
+      padding:17px;
+      margin-top:28px;
+      font-size:21px;
+      font-weight:700;
+      border:1px solid #999;
+      border-radius:14px;
+      background:#fff;
+      cursor:pointer;
+    }
+    button:disabled { opacity:.55; cursor:default; }
+    .msg {
+      margin-top:26px;
+      padding:18px 20px;
+      border:1px solid #ddd;
+      border-radius:14px;
+      font-size:19px;
+      line-height:1.4;
+      display:none;
+      background:#fafafa;
+    }
+    .small { margin-top:24px; font-size:16px; color:#666; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Empresa — Cambiar contraseña</h1>
+    <p>Introduce una nueva contraseña para tu cuenta.</p>
+
+    <label for="p1">Nueva contraseña</label>
+    <input id="p1" type="password" autocomplete="new-password" minlength="8">
+
+    <label for="p2">Repite la contraseña</label>
+    <input id="p2" type="password" autocomplete="new-password" minlength="8">
+
+    <button id="btn">Guardar nueva contraseña</button>
+
+    <div id="msg" class="msg"></div>
+    <div class="small">Esta página solo funciona después de abrir un enlace válido de recuperación enviado por Supabase.</div>
+  </div>
+
+<script>
+const SUPABASE_URL = 'https://twpommdfpcdwznqoqiaj.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_y7qK9547paLvOTItxEPoCA_wKMb27JX';
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const btn = document.getElementById('btn');
+const msg = document.getElementById('msg');
+
+function show(text) {
+  msg.textContent = text;
+  msg.style.display = 'block';
+}
+
+btn.addEventListener('click', async () => {
+  msg.style.display = 'none';
+
+  const p1 = document.getElementById('p1').value;
+  const p2 = document.getElementById('p2').value;
+
+  if (p1.length < 8) {
+    show('La contraseña debe tener al menos 8 caracteres.');
+    return;
+  }
+
+  if (p1 !== p2) {
+    show('Las dos contraseñas no coinciden.');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Guardando...';
+
+  const { data: sessionData } = await sb.auth.getSession();
+
+  if (!sessionData.session) {
+    show('El enlace de recuperación no es válido o ha caducado. Solicita uno nuevo.');
+    btn.disabled = false;
+    btn.textContent = 'Guardar nueva contraseña';
+    return;
+  }
+
+  const { error } = await sb.auth.updateUser({ password: p1 });
+
+  if (error) {
+    show('No se ha podido cambiar la contraseña: ' + error.message);
+    btn.disabled = false;
+    btn.textContent = 'Guardar nueva contraseña';
+    return;
+  }
+
+  show('✓ Contraseña actualizada correctamente. Ya puedes volver a la página de asistencia e iniciar sesión con la nueva contraseña.');
+  btn.textContent = 'Contraseña actualizada';
+});
+</script>
+</body>
+</html>
