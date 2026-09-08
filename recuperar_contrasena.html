@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Empresa — Recuperar contraseña</title>
+  <style>
+    :root { font-family: Arial, Helvetica, sans-serif; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; background: #f3f5f7;
+      display: flex; align-items: center; justify-content: center;
+      padding: 24px; color: #111827;
+    }
+    .card {
+      width: 100%; max-width: 620px; background: #fff;
+      border: 1px solid #d7dce2; border-radius: 24px;
+      padding: 32px; box-shadow: 0 2px 8px rgba(0,0,0,.03);
+    }
+    h1 { margin: 0 0 14px; font-size: clamp(28px,5vw,38px); line-height: 1.15; }
+    p { font-size: 18px; line-height: 1.45; margin: 0 0 18px; }
+    label { display: block; font-weight: 700; font-size: 18px; margin: 24px 0 8px; }
+    input {
+      width: 100%; padding: 16px 18px; font-size: 18px;
+      border: 1px solid #aeb6bf; border-radius: 15px; outline: none;
+    }
+    input:focus { border-color: #111827; box-shadow: 0 0 0 3px rgba(17,24,39,.08); }
+    button {
+      width: 100%; margin-top: 28px; padding: 16px 18px;
+      font-size: 18px; font-weight: 700; border: 1px solid #9aa3ad;
+      border-radius: 15px; background: #fff; color: #111827; cursor: pointer;
+    }
+    button:hover { background: #f8fafc; }
+    button:disabled { opacity: .6; cursor: wait; }
+    .message {
+      display: none; margin-top: 22px; padding: 14px 16px;
+      border-radius: 12px; font-size: 16px; line-height: 1.4;
+    }
+    .message.ok { display: block; background: #ecfdf3; border: 1px solid #a7f3d0; color: #065f46; }
+    .message.error { display: block; background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+    .small { margin-top: 22px; font-size: 15px; color: #5b6470; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>Empresa — Recuperar contraseña</h1>
+    <p>Introduce el correo electrónico de tu cuenta. Te enviaremos un enlace para crear una nueva contraseña.</p>
+
+    <form id="recoveryForm">
+      <label for="email">Correo electrónico</label>
+      <input id="email" name="email" type="email" autocomplete="email" inputmode="email"
+             required placeholder="nombre@correo.es" />
+      <button id="submitBtn" type="submit">Enviar enlace de recuperación</button>
+    </form>
+
+    <div id="message" class="message" role="status" aria-live="polite"></div>
+
+    <p class="small">
+      Si la dirección corresponde a una cuenta registrada, recibirás un mensaje de
+      <strong>Empresa EEBE - Control de asistencia</strong>. Revisa también la carpeta de spam.
+    </p>
+  </main>
+
+  <script type="module">
+    import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+
+    const SUPABASE_URL = "https://twpommdfpcdwznqoqiaj.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_y7qK9547paLvOTItxEPoCA_wKMb27JX";
+    const PASSWORD_RESET_REDIRECT =
+      "https://empresa-upc.github.io/control-asistencia-empresa/cambiar_contrasena.html";
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const form = document.getElementById("recoveryForm");
+    const emailInput = document.getElementById("email");
+    const submitBtn = document.getElementById("submitBtn");
+    const message = document.getElementById("message");
+
+    function showMessage(text, type) {
+      message.textContent = text;
+      message.className = "message " + type;
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const email = emailInput.value.trim().toLowerCase();
+      if (!email) return;
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Enviando...";
+      message.className = "message";
+      message.textContent = "";
+
+      try {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: PASSWORD_RESET_REDIRECT
+        });
+
+        if (error) {
+          console.error(error);
+          showMessage(
+            "No se ha podido enviar el correo de recuperación en este momento. Espera unos minutos y vuelve a intentarlo.",
+            "error"
+          );
+          return;
+        }
+
+        showMessage(
+          "Si existe una cuenta asociada a ese correo, recibirás en breve un enlace para cambiar la contraseña.",
+          "ok"
+        );
+        form.reset();
+      } catch (err) {
+        console.error(err);
+        showMessage(
+          "No se ha podido completar la solicitud. Comprueba tu conexión e inténtalo de nuevo.",
+          "error"
+        );
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Enviar enlace de recuperación";
+      }
+    });
+  </script>
+</body>
+</html>
