@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Empresa — Activación del control de asistencia</title>
+<style>
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f4f7fb;color:#0f172a}
+.wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:28px}
+.card{width:min(1180px,96vw);background:#fff;border:1px solid #dbe3ee;border-radius:24px;padding:34px}
+h1{margin:0 0 8px;font-size:48px}
+.subtitle{margin:0 0 24px;color:#475569;font-size:24px}
+.grid{display:grid;grid-template-columns:380px 1fr;gap:34px;align-items:center}
+.qrbox{background:#f8fafc;border:1px solid #dbe3ee;border-radius:20px;padding:24px;text-align:center}
+#qrcode{display:flex;justify-content:center;min-height:360px}
+.scan{font-size:25px;font-weight:700;margin-top:10px}
+.small,.note,.url{color:#475569}
+.steps{display:grid;gap:14px}
+.step{display:grid;grid-template-columns:48px 1fr;gap:14px;border:1px solid #dbe3ee;border-radius:16px;padding:16px 18px}
+.n{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:#0f172a;color:#fff;font-weight:700;font-size:20px}
+.step strong{display:block;font-size:21px;margin-bottom:4px}
+.step p{margin:0;color:#475569;font-size:18px;line-height:1.35}
+.success{margin-top:18px;border:2px solid #bbf7d0;background:#f0fdf4;border-radius:16px;padding:16px 18px;color:#166534;font-weight:700;font-size:21px;text-align:center}
+.note{margin-top:18px;font-size:16px}
+.url{margin-top:18px;padding-top:14px;border-top:1px solid #dbe3ee;text-align:center;font-size:15px;word-break:break-all}
+@media(max-width:850px){.grid{grid-template-columns:1fr}.card{padding:24px}h1{font-size:36px}}
+</style>
+</head>
+<body>
+<main class="wrap">
+<section class="card">
+<h1>Empresa — Activa tu cuenta de asistencia</h1>
+<p class="subtitle">Hazlo una sola vez con el móvil y navegador que utilizarás habitualmente.</p>
+<div class="grid">
+  <div class="qrbox">
+    <div id="qrcode"></div>
+    <div class="scan">Escanea este QR</div>
+    <div class="small">Te llevará directamente a la página de activación.</div>
+  </div>
+  <div>
+    <div class="steps">
+      <div class="step"><div class="n">1</div><div><strong>Introduce tus datos</strong><p>Usa tu correo <b>@estudiantat.upc.edu</b>, tu DNI/documento tal como consta en la matrícula y crea una contraseña de al menos 8 caracteres.</p></div></div>
+      <div class="step"><div class="n">2</div><div><strong>Confirma el correo</strong><p>Abre el mensaje de <b>Empresa EEBE — Control de asistencia</b> y pulsa <b>“Confirmar mi correo”</b>.</p></div></div>
+      <div class="step"><div class="n">3</div><div><strong>Completa la activación</strong><p>Al volver a la página, comprueba tu DNI y pulsa <b>“Ya tengo cuenta”</b>.</p></div></div>
+      <div class="step"><div class="n">4</div><div><strong>Termina cuando veas “CUENTA ACTIVADA”</strong><p>Ese navegador quedará registrado como tu dispositivo habitual para marcar asistencia.</p></div></div>
+    </div>
+    <div class="success">✓ Cuando aparezca “CUENTA ACTIVADA”, ya has terminado.</div>
+    <div class="note">No utilices modo incógnito/privado. Si el correo tarda, revisa también Spam o Correo no deseado.</div>
+  </div>
+</div>
+<div class="url">Si no puedes escanear el QR:<br><strong>https://empresa-upc.github.io/control-asistencia-empresa/activar_alumno.html</strong></div>
+</section>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+const activationUrl="https://empresa-upc.github.io/control-asistencia-empresa/activar_alumno.html";
+new QRCode(document.getElementById("qrcode"),{text:activationUrl,width:360,height:360,correctLevel:QRCode.CorrectLevel.M});
+</script>
+</body>
+</html>
